@@ -75,6 +75,16 @@ prompt_for_auth_key() {
   fi
 }
 
+prompt_for_optional_auth_key() {
+  printf 'Enter Tailscale auth key (leave blank to continue without one): ' >&2
+  read -r -s AUTH_KEY
+  printf '\n' >&2
+
+  if [ -n "$AUTH_KEY" ]; then
+    AUTH_KEY_FLAG=1
+  fi
+}
+
 tailscale_has_ipv4() {
   tailscale ip -4 2>/dev/null | head -n 1 | grep -q .
 }
@@ -82,9 +92,8 @@ tailscale_has_ipv4() {
 prompt_for_tailscale_mode() {
   echo "Choose Tailscale setup mode:"
   echo "1. Web-based interactive authentication"
-  echo "2. Enter an auth key"
-  echo "3. Skip Tailscale enrollment"
-  printf "Selection [1-3]: "
+  echo "2. Skip Tailscale enrollment"
+  printf "Selection [1-2]: "
 
   local selection
   read -r selection
@@ -94,10 +103,6 @@ prompt_for_tailscale_mode() {
       INTERACTIVE=1
       ;;
     2)
-      AUTH_KEY_FLAG=1
-      prompt_for_auth_key
-      ;;
-    3)
       SKIP_TAILSCALE=1
       echo "Skipping Tailscale enrollment."
       ;;
@@ -127,7 +132,16 @@ detect_os_family() {
 
 install_host_packages() {
   sudo apt-get update
-  sudo apt-get install -y --no-install-recommends +    ca-certificates +    curl +    gnupg +    jq +    lsb-release
+  sudo apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    gettext-base \
+    gnupg \
+    iproute2 \
+    jq \
+    lsb-release \
+    openssl \
+    python3
 }
 
 ensure_docker() {
@@ -204,7 +218,14 @@ main() {
     if [ "$AUTH_KEY_FLAG" -eq 1 ] && [ -z "$AUTH_KEY" ]; then
       prompt_for_auth_key
     elif [ "$INTERACTIVE" -eq 0 ] && [ "$AUTH_KEY_FLAG" -eq 0 ] && [ "$SKIP_TAILSCALE" -eq 0 ] && [ "${GONNECT_BOOTSTRAP_TAILSCALE_UP:-1}" = "0" ]; then
-      prompt_for_tailscale_mode
+      prompt_for_optional_auth_key
+      if [ "$AUTH_KEY_FLAG" -eq 0 ]; then
+        prompt_for_tailscale_mode
+      fi
+    fi
+
+    if [ "$AUTH_KEY_FLAG" -eq 1 ] && [ -n "$AUTH_KEY" ]; then
+      echo "Tailscale auth key captured for later enrollment."
     fi
 
     echo "Host prerequisites configured."
@@ -216,7 +237,10 @@ main() {
 
   if [ "$AUTH_KEY_FLAG" -eq 0 ] && [ "$INTERACTIVE" -eq 0 ] && [ "$SKIP_TAILSCALE" -eq 0 ]; then
     if ! tailscale_has_ipv4; then
-      prompt_for_tailscale_mode
+      prompt_for_optional_auth_key
+      if [ "$AUTH_KEY_FLAG" -eq 0 ]; then
+        prompt_for_tailscale_mode
+      fi
     fi
   fi
 

@@ -1,16 +1,16 @@
 #!/usr/bin/env bats
 
 @test "asterisk lab skeleton files exist" {
-  run test -f apps/asterisk-lab/README.md
+  run test -f README.md
   [ "$status" -eq 0 ]
 
-  run test -f apps/asterisk-lab/.env.example
+  run test -f .env.example
   [ "$status" -eq 0 ]
 
-  run test -f apps/asterisk-lab/.gitignore
+  run test -f .gitignore
   [ "$status" -eq 0 ]
 
-  run test -f apps/asterisk-lab/runtime/.gitkeep
+  run test -f runtime/.gitkeep
   [ "$status" -eq 0 ]
 }
 
@@ -19,9 +19,9 @@
   tmp_dir="$(mktemp -d)"
   test_env_file="$tmp_dir/test.env"
   test_runtime_dir="$tmp_dir/runtime"
-  cp apps/asterisk-lab/tests/fixtures/test.env "$test_env_file"
+  cp tests/fixtures/test.env "$test_env_file"
 
-  run bash apps/asterisk-lab/scripts/deploy.sh \
+  run bash scripts/deploy.sh \
     --render-only \
     --env-file "$test_env_file" \
     --runtime-dir "$test_runtime_dir"
@@ -98,9 +98,9 @@
   tmp_dir="$(mktemp -d)"
   test_env_file="$tmp_dir/test.env"
   test_runtime_dir="$tmp_dir/runtime"
-  cp apps/asterisk-lab/tests/fixtures/test.env "$test_env_file"
+  cp tests/fixtures/test.env "$test_env_file"
 
-  run bash apps/asterisk-lab/scripts/deploy.sh \
+  run bash scripts/deploy.sh \
     --render-only \
     --env-file "$test_env_file" \
     --runtime-dir "$test_runtime_dir"
@@ -150,7 +150,7 @@ ASTERISK_TAILSCALE_IP=
 ASTERISK_ENABLE_TAILSCALE_CHECK=false
 EOF
 
-  run bash apps/asterisk-lab/scripts/deploy.sh \
+  run bash scripts/deploy.sh \
     --render-only \
     --env-file "$test_env_file" \
     --runtime-dir "$test_runtime_dir"
@@ -173,9 +173,9 @@ EOF
   tmp_dir="$(mktemp -d)"
   test_env_file="$tmp_dir/test.env"
   test_runtime_dir="$tmp_dir/runtime"
-  cp apps/asterisk-lab/tests/fixtures/test.env "$test_env_file"
+  cp tests/fixtures/test.env "$test_env_file"
 
-  run bash apps/asterisk-lab/scripts/deploy.sh \
+  run bash scripts/deploy.sh \
     --render-only \
     --env-file "$test_env_file" \
     --runtime-dir "$test_runtime_dir"
@@ -183,14 +183,14 @@ EOF
 
   run docker compose \
     --env-file "$test_env_file" \
-    -f apps/asterisk-lab/compose.yaml \
+    -f compose.yaml \
     config
   [ "$status" -eq 0 ]
 
-  run grep -F 'network_mode: host' apps/asterisk-lab/compose.yaml
+  run grep -F 'network_mode: host' compose.yaml
   [ "$status" -eq 0 ]
 
-  run grep -F 'ports:' apps/asterisk-lab/compose.yaml
+  run grep -F 'ports:' compose.yaml
   [ "$status" -ne 0 ]
 
   [[ "$output" == *"read_only: true"* ]]
@@ -203,50 +203,66 @@ EOF
 }
 
 @test "check script rejects --env-file without a value" {
-  run bash apps/asterisk-lab/scripts/check.sh --env-file
+  run bash scripts/check.sh --env-file
   [ "$status" -eq 1 ]
   [[ "$output" == *"Error: --env-file requires a value"* ]]
   [[ "$output" == *"Usage: ./scripts/check.sh [--env-file PATH]"* ]]
 }
 
 @test "bootstrap-host shows usage and rejects conflicting enrollment flags" {
-  run bash apps/asterisk-lab/scripts/bootstrap-host.sh --help
+  run bash scripts/bootstrap-host.sh --help
   [ "$status" -eq 0 ]
   [[ "$output" == *"Usage: ./scripts/bootstrap-host.sh"* ]]
 
-  run bash apps/asterisk-lab/scripts/bootstrap-host.sh --interactive --auth-key test-key
+  run bash scripts/bootstrap-host.sh --interactive --auth-key test-key
   [ "$status" -eq 1 ]
   [[ "$output" == *"Choose exactly one enrollment mode"* ]]
 }
 
 @test "check script validates configured extension numbers" {
-  run grep -F 'ASTERISK_EXT_A_NUMBER' apps/asterisk-lab/scripts/check.sh
+  run grep -F 'ASTERISK_EXT_A_NUMBER' scripts/check.sh
   [ "$status" -eq 0 ]
 
-  run grep -F 'ASTERISK_EXT_B_NUMBER' apps/asterisk-lab/scripts/check.sh
+  run grep -F 'ASTERISK_EXT_B_NUMBER' scripts/check.sh
   [ "$status" -eq 0 ]
 }
 
 @test "README documents multisite bootstrap flow" {
-  run grep -F './scripts/bootstrap-host.sh --interactive' apps/asterisk-lab/README.md
+  run grep -F './scripts/bootstrap-host.sh --interactive' README.md
   [ "$status" -eq 0 ]
 
-  run grep -F './scripts/bootstrap-host.sh --auth-key' apps/asterisk-lab/README.md
+  run grep -F './scripts/bootstrap-host.sh --auth-key' README.md
   [ "$status" -eq 0 ]
 
-  run grep -F 'site-specific numbering' apps/asterisk-lab/README.md
+  run grep -F 'site-specific numbering' README.md
   [ "$status" -eq 0 ]
 }
 
 @test "bootstrap-host prompts for missing auth key value" {
-  run bash -lc "printf 'secret-key\n' | GONNECT_BOOTSTRAP_TEST_MODE=1 bash apps/asterisk-lab/scripts/bootstrap-host.sh --auth-key --configure-only"
+  run bash -lc "printf 'secret-key\n' | GONNECT_BOOTSTRAP_TEST_MODE=1 bash scripts/bootstrap-host.sh --auth-key --configure-only"
   [ "$status" -eq 0 ]
   [[ "$output" == *"Enter Tailscale auth key:"* ]]
+  [[ "$output" == *"Tailscale auth key captured for later enrollment."* ]]
 }
 
-@test "bootstrap-host prompts for tailscale mode when none provided" {
-  run bash -lc "printf '3\n' | GONNECT_BOOTSTRAP_TEST_MODE=1 GONNECT_BOOTSTRAP_TAILSCALE_UP=0 bash apps/asterisk-lab/scripts/bootstrap-host.sh --configure-only"
+@test "bootstrap-host prefers auth key before falling back to mode selection" {
+  run bash -lc "printf '\n2\n' | GONNECT_BOOTSTRAP_TEST_MODE=1 GONNECT_BOOTSTRAP_TAILSCALE_UP=0 bash scripts/bootstrap-host.sh --configure-only"
   [ "$status" -eq 0 ]
+  [[ "$output" == *"Enter Tailscale auth key (leave blank to continue without one):"* ]]
   [[ "$output" == *"Choose Tailscale setup mode:"* ]]
   [[ "$output" == *"Skipping Tailscale enrollment."* ]]
+}
+
+@test "bootstrap-host installs deploy prerequisites" {
+  run grep -F 'gettext-base' scripts/bootstrap-host.sh
+  [ "$status" -eq 0 ]
+
+  run grep -F 'openssl' scripts/bootstrap-host.sh
+  [ "$status" -eq 0 ]
+
+  run grep -F 'iproute2' scripts/bootstrap-host.sh
+  [ "$status" -eq 0 ]
+
+  run grep -F 'python3' scripts/bootstrap-host.sh
+  [ "$status" -eq 0 ]
 }

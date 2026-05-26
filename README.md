@@ -19,11 +19,11 @@ The first deployment renders runtime config from tracked templates, generates st
 
 ## Prerequisites
 
-- Docker Engine
-- Docker Compose v2
-- `envsubst`
-- `openssl`
-- `iproute2`
+- Git
+- `bash`
+- `sudo` access on Debian, Ubuntu, or Linux Mint
+
+The bootstrap script installs Docker, Docker Compose, Tailscale when requested, and the local deploy dependencies needed by `./scripts/deploy.sh`.
 
 ## Files
 
@@ -36,7 +36,6 @@ The first deployment renders runtime config from tracked templates, generates st
 
 ## First Deploy
 
-    cd apps/asterisk-lab
     ./scripts/deploy.sh
 
 What happens:
@@ -123,6 +122,8 @@ Bootstrap a host interactively:
 Bootstrap a host with a pre-issued Tailscale auth key:
 
     ./scripts/bootstrap-host.sh --auth-key tskey-example
+
+If no Tailscale mode is provided during bootstrap and the host is not already enrolled, the script first offers a secure auth-key prompt. If no key is entered, it falls back to either web-based interactive authentication or skipping Tailscale enrollment.
 
 Install prerequisites without attempting Tailscale enrollment:
 
