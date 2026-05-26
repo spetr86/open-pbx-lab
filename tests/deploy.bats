@@ -201,3 +201,10 @@ EOF
 
   rm -rf "$tmp_dir"
 }
+
+@test "check script rejects --env-file without a value" {
+  run bash apps/asterisk-lab/scripts/check.sh --env-file
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"Error: --env-file requires a value"* ]]
+  [[ "$output" == *"Usage: ./scripts/check.sh [--env-file PATH]"* ]]
+}

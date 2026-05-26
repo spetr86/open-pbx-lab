@@ -13,6 +13,11 @@ EOF
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --env-file)
+      if [ "$#" -lt 2 ]; then
+        echo "Error: --env-file requires a value" >&2
+        usage >&2
+        exit 1
+      fi
       ENV_FILE="$2"
       shift 2
       ;;
