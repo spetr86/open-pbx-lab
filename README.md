@@ -112,6 +112,51 @@ By default the stack binds those ports to the detected host LAN IP, not all inte
 - the container runs with `no-new-privileges` and dropped Linux capabilities
 - several optional or noisy modules are explicitly disabled
 
+## Multi-Site Bootstrap
+
+This scaffold can also prepare a second host on another network so another operator can stand up an equivalent LAN PBX from the same repo.
+
+Bootstrap a host interactively:
+
+    ./scripts/bootstrap-host.sh --interactive
+
+Bootstrap a host with a pre-issued Tailscale auth key:
+
+    ./scripts/bootstrap-host.sh --auth-key tskey-example
+
+Install prerequisites without attempting Tailscale enrollment:
+
+    ./scripts/bootstrap-host.sh --configure-only
+
+After the host is ready, deploy a site-specific PBX:
+
+    ASTERISK_SITE_NAME=site-b ASTERISK_EXTENSION_BASE=200 ./scripts/deploy.sh
+
+The multisite path relies on site-specific numbering so two different hosts can be deployed from the same templates without overlapping extension identities.
+
+## Remote Operator Handoff
+
+What the remote operator needs:
+
+- repo access
+- Docker and Compose support, or permission to let the bootstrap script install them
+- a Tailscale auth key if non-interactive enrollment is desired
+- the chosen site name and extension base for that host
+
+What this phase does not do yet:
+
+- it does not create a PBX-to-PBX trunk
+- it does not expose SIP to the public internet
+- it does not route softphone traffic over Tailscale
+
+## Manual Verification For A Second Site
+
+1. Run `./scripts/bootstrap-host.sh --interactive` on a local test host, or use `./scripts/bootstrap-host.sh --auth-key <key>` on a remote operator host.
+2. Confirm `tailscale ip -4` returns a tailnet IPv4 address when Tailscale enrollment is in scope.
+3. Run `ASTERISK_SITE_NAME=site-b ASTERISK_EXTENSION_BASE=200 ./scripts/deploy.sh`.
+4. Register two local softphones against that second site as `200` and `201`.
+5. Confirm extension-to-extension RTP audio works on that site's LAN.
+
 ## Security Boundary
 
 This project is for a trusted LAN lab only. Do not expose it directly to the public internet without additional controls such as TLS/SRTP design, firewalling, fail2ban, SIP ACLs, and a more deliberate trust boundary.

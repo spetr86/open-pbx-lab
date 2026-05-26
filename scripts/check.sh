@@ -40,6 +40,10 @@ require_cmd() {
   }
 }
 
+set -a
+. "$ENV_FILE"
+set +a
+
 require_cmd docker
 
 for attempt in $(seq 1 20); do
@@ -60,9 +64,18 @@ done
 endpoints_output="$(docker compose --env-file "$ENV_FILE" -f "$APP_DIR/compose.yaml" exec -T asterisk asterisk -rx "pjsip show endpoints")"
 dialplan_output="$(docker compose --env-file "$ENV_FILE" -f "$APP_DIR/compose.yaml" exec -T asterisk asterisk -rx "dialplan show internal")"
 
-printf '%s\n' "$endpoints_output" | grep -E '^ Endpoint:[[:space:]]+100[[:space:]]' >/dev/null
-printf '%s\n' "$endpoints_output" | grep -E '^ Endpoint:[[:space:]]+101[[:space:]]' >/dev/null
-printf '%s\n' "$dialplan_output" | grep -F "100" >/dev/null
-printf '%s\n' "$dialplan_output" | grep -F "101" >/dev/null
+printf '%s\n' "$endpoints_output" | grep -E "^ Endpoint:[[:space:]]+$ASTERISK_EXT_A_NUMBER[[:space:]]" >/dev/null
+printf '%s\n' "$endpoints_output" | grep -E "^ Endpoint:[[:space:]]+$ASTERISK_EXT_B_NUMBER[[:space:]]" >/dev/null
+printf '%s\n' "$dialplan_output" | grep -F "$ASTERISK_EXT_A_NUMBER" >/dev/null
+printf '%s\n' "$dialplan_output" | grep -F "$ASTERISK_EXT_B_NUMBER" >/dev/null
+
+if [ "${ASTERISK_ENABLE_TAILSCALE_CHECK:-0}" = "1" ]; then
+  require_cmd tailscale
+  tailscale_ip="$(tailscale ip -4 2>/dev/null | head -n 1 || true)"
+  if [ -z "$tailscale_ip" ]; then
+    echo "No Tailscale IPv4 address is available." >&2
+    exit 1
+  fi
+fi
 
 echo "Asterisk CLI and dialplan checks passed."

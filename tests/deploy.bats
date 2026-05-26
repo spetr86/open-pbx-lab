@@ -208,3 +208,32 @@ EOF
   [[ "$output" == *"Error: --env-file requires a value"* ]]
   [[ "$output" == *"Usage: ./scripts/check.sh [--env-file PATH]"* ]]
 }
+
+@test "bootstrap-host shows usage and rejects conflicting enrollment flags" {
+  run bash apps/asterisk-lab/scripts/bootstrap-host.sh --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Usage: ./scripts/bootstrap-host.sh"* ]]
+
+  run bash apps/asterisk-lab/scripts/bootstrap-host.sh --interactive --auth-key test-key
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"Choose exactly one enrollment mode"* ]]
+}
+
+@test "check script validates configured extension numbers" {
+  run grep -F 'ASTERISK_EXT_A_NUMBER' apps/asterisk-lab/scripts/check.sh
+  [ "$status" -eq 0 ]
+
+  run grep -F 'ASTERISK_EXT_B_NUMBER' apps/asterisk-lab/scripts/check.sh
+  [ "$status" -eq 0 ]
+}
+
+@test "README documents multisite bootstrap flow" {
+  run grep -F './scripts/bootstrap-host.sh --interactive' apps/asterisk-lab/README.md
+  [ "$status" -eq 0 ]
+
+  run grep -F './scripts/bootstrap-host.sh --auth-key' apps/asterisk-lab/README.md
+  [ "$status" -eq 0 ]
+
+  run grep -F 'site-specific numbering' apps/asterisk-lab/README.md
+  [ "$status" -eq 0 ]
+}
