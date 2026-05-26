@@ -125,7 +125,7 @@ ensure_env_file() {
   local current
   current="$(read_var "$ENV_FILE" "ASTERISK_SITE_NAME")"
   if [ -z "$current" ]; then
-    upsert_var "$ENV_FILE" "ASTERISK_SITE_NAME" "\"Asterisk Lab\""
+    upsert_var "$ENV_FILE" "ASTERISK_SITE_NAME" "site-a"
   fi
 
   current="$(read_var "$ENV_FILE" "ASTERISK_LISTEN_IP")"
@@ -202,7 +202,7 @@ ensure_env_file() {
 
   current="$(read_var "$ENV_FILE" "ASTERISK_ENABLE_TAILSCALE_CHECK")"
   if [ -z "$current" ]; then
-    upsert_var "$ENV_FILE" "ASTERISK_ENABLE_TAILSCALE_CHECK" "false"
+    upsert_var "$ENV_FILE" "ASTERISK_ENABLE_TAILSCALE_CHECK" "0"
   fi
 }
 
@@ -236,8 +236,10 @@ Local network: $ASTERISK_LOCAL_NET
 SIP port: $ASTERISK_SIP_PORT
 RTP range: $ASTERISK_RTP_START-$ASTERISK_RTP_END
 
-Primary extension: $ASTERISK_EXT_A_NUMBER (password: $ASTERISK_EXT_A_PASSWORD)
-Secondary extension: $ASTERISK_EXT_B_NUMBER (password: $ASTERISK_EXT_B_PASSWORD)
+Primary extension: $ASTERISK_EXT_A_NUMBER
+Secondary extension: $ASTERISK_EXT_B_NUMBER
+Primary extension password: $ASTERISK_EXT_A_PASSWORD
+Secondary extension password: $ASTERISK_EXT_B_PASSWORD
 EOF
 }
 
