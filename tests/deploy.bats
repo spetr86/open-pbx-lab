@@ -237,3 +237,16 @@ EOF
   run grep -F 'site-specific numbering' apps/asterisk-lab/README.md
   [ "$status" -eq 0 ]
 }
+
+@test "bootstrap-host prompts for missing auth key value" {
+  run bash -lc "printf 'secret-key\n' | GONNECT_BOOTSTRAP_TEST_MODE=1 bash apps/asterisk-lab/scripts/bootstrap-host.sh --auth-key --configure-only"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Enter Tailscale auth key:"* ]]
+}
+
+@test "bootstrap-host prompts for tailscale mode when none provided" {
+  run bash -lc "printf '3\n' | GONNECT_BOOTSTRAP_TEST_MODE=1 GONNECT_BOOTSTRAP_TAILSCALE_UP=0 bash apps/asterisk-lab/scripts/bootstrap-host.sh --configure-only"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Choose Tailscale setup mode:"* ]]
+  [[ "$output" == *"Skipping Tailscale enrollment."* ]]
+}
