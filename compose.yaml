@@ -1,0 +1,35 @@
+services:
+  asterisk:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: asterisk-lab
+    network_mode: host
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./runtime/generated/pjsip.conf:/etc/asterisk/pjsip.conf:ro
+      - ./runtime/generated/extensions.conf:/etc/asterisk/extensions.conf:ro
+      - ./runtime/generated/rtp.conf:/etc/asterisk/rtp.conf:ro
+      - ./runtime/generated/modules.conf:/etc/asterisk/modules.conf:ro
+      - ./runtime/generated/manager.conf:/etc/asterisk/manager.conf:ro
+      - ./runtime/generated/http.conf:/etc/asterisk/http.conf:ro
+      - asterisk-lib:/var/lib/asterisk
+      - asterisk-log:/var/log/asterisk
+      - asterisk-spool:/var/spool/asterisk
+    tmpfs:
+      - /tmp
+      - /var/run/asterisk
+    healthcheck:
+      test: ["CMD-SHELL", "asterisk -rx 'core show version' >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  asterisk-lib:
+  asterisk-log:
+  asterisk-spool:

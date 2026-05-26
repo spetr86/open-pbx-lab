@@ -1,3 +1,4 @@
 runtime/*
 !runtime/.gitkeep
 .env
+*.log

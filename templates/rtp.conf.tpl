@@ -1,0 +1,3 @@
+[general]
+rtpstart=${ASTERISK_RTP_START}
+rtpend=${ASTERISK_RTP_END}

@@ -1,0 +1,22 @@
+[modules]
+autoload=yes
+noload => chan_sip.so
+noload => res_http_websocket.so
+noload => res_pjsip_endpoint_identifier_anonymous.so
+noload => res_pjsip_transport_websocket.so
+noload => pbx_dundi.so
+noload => chan_unistim.so
+noload => app_voicemail_imap.so
+noload => app_voicemail_odbc.so
+noload => cdr_pgsql.so
+noload => cdr_radius.so
+noload => cdr_sqlite3_custom.so
+noload => cdr_tds.so
+noload => cel_radius.so
+noload => cel_sqlite3_custom.so
+noload => cel_tds.so
+noload => res_aeap.so
+noload => res_speech_aeap.so
+noload => res_hep_pjsip.so
+noload => res_hep_rtcp.so
+noload => res_ari_events.so
