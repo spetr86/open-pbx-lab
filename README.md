@@ -25,6 +25,14 @@ The first deployment renders runtime config from tracked templates, generates st
 
 The bootstrap script installs Docker, Docker Compose, Tailscale when requested, and the local deploy dependencies needed by `./scripts/deploy.sh`.
 
+### WSL TLS Certificate Failures
+
+On WSL, HTTPS downloads can fail with a `curl failed to verify the legitimacy of the server` message when the Linux CA bundle is stale, the WSL clock is wrong, or a corporate HTTPS inspection root CA exists in Windows but not in the Linux trust store. The bootstrap script now refreshes `ca-certificates` before downloading Docker or Tailscale installers, retries once after curl CA errors, and keeps TLS verification enabled instead of using insecure curl flags.
+
+If the retry still fails, verify the WSL date/time, add any required organization root CA to the Linux trust store, then rerun:
+
+    ./scripts/install.sh
+
 ## Files
 
 - `compose.yaml`: single-service Docker Compose stack
@@ -128,6 +136,10 @@ If no Tailscale mode is provided during bootstrap and the host is not already en
 Install prerequisites without attempting Tailscale enrollment:
 
     ./scripts/bootstrap-host.sh --configure-only
+
+Install Docker prerequisites and skip both Tailscale installation and enrollment:
+
+    ./scripts/bootstrap-host.sh --skip-tailscale
 
 After the host is ready, deploy a site-specific PBX:
 
