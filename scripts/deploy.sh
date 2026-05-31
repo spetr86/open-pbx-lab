@@ -56,7 +56,32 @@ read_var() {
   awk -F= -v key="$key" '$1 == key { print substr($0, index($0, "=") + 1); exit }' "$file"
 }
 
+is_wsl() {
+  if [ "${GONNECT_ASSUME_WSL:-0}" = "1" ]; then
+    return 0
+  fi
+
+  if [ -r /proc/sys/kernel/osrelease ] && grep -qiE 'microsoft|wsl' /proc/sys/kernel/osrelease; then
+    return 0
+  fi
+
+  return 1
+}
+
+is_wsl_nat_address() {
+  printf '%s\n' "$1" | grep -Eq '^172\.(1[6-9]|2[0-9]|3[0-1])\.'
+}
+
+is_wsl_nat_cidr() {
+  printf '%s\n' "$1" | grep -Eq '^172\.(1[6-9]|2[0-9]|3[0-1])\..*/[0-9]+$'
+}
+
 detect_host_ip() {
+  if is_wsl; then
+    echo "127.0.0.1"
+    return 0
+  fi
+
   ip route get 1.1.1.1 2>/dev/null | awk '{
     for (i = 1; i <= NF; i++) {
       if ($i == "src") {
@@ -70,6 +95,11 @@ detect_host_ip() {
 detect_local_net() {
   local host_ip="$1"
   local host_cidr
+
+  if [ "$host_ip" = "127.0.0.1" ]; then
+    echo "127.0.0.0/8"
+    return 0
+  fi
   host_cidr="$(ip -o -f inet addr show scope global | awk -v host_ip="$host_ip" '
     $4 ~ /^[0-9]/ && index($4, host_ip "/") {
       print $4
@@ -130,26 +160,36 @@ ensure_env_file() {
 
   current="$(read_var "$ENV_FILE" "ASTERISK_LISTEN_IP")"
   if [ -z "$current" ]; then
-    upsert_var "$ENV_FILE" "ASTERISK_LISTEN_IP" "0.0.0.0"
+    upsert_var "$ENV_FILE" "ASTERISK_LISTEN_IP" "$detected_ip"
+  elif is_wsl && [ "$current" = "0.0.0.0" ]; then
+    upsert_var "$ENV_FILE" "ASTERISK_LISTEN_IP" "$detected_ip"
   fi
 
   current="$(read_var "$ENV_FILE" "ASTERISK_HOST_BIND_IP")"
   if [ -z "$current" ]; then
+    upsert_var "$ENV_FILE" "ASTERISK_HOST_BIND_IP" "$detected_ip"
+  elif is_wsl && is_wsl_nat_address "$current"; then
     upsert_var "$ENV_FILE" "ASTERISK_HOST_BIND_IP" "$detected_ip"
   fi
 
   current="$(read_var "$ENV_FILE" "ASTERISK_ADVERTISED_IP")"
   if [ -z "$current" ]; then
     upsert_var "$ENV_FILE" "ASTERISK_ADVERTISED_IP" "$detected_ip"
+  elif is_wsl && is_wsl_nat_address "$current"; then
+    upsert_var "$ENV_FILE" "ASTERISK_ADVERTISED_IP" "$detected_ip"
   fi
 
   current="$(read_var "$ENV_FILE" "ASTERISK_LOCAL_NET")"
   if [ -z "$current" ]; then
     upsert_var "$ENV_FILE" "ASTERISK_LOCAL_NET" "$detected_net"
+  elif is_wsl && is_wsl_nat_cidr "$current"; then
+    upsert_var "$ENV_FILE" "ASTERISK_LOCAL_NET" "$detected_net"
   fi
 
   current="$(read_var "$ENV_FILE" "ASTERISK_ENDPOINT_CONTACT_CIDR")"
   if [ -z "$current" ]; then
+    upsert_var "$ENV_FILE" "ASTERISK_ENDPOINT_CONTACT_CIDR" "$detected_net"
+  elif is_wsl && is_wsl_nat_cidr "$current"; then
     upsert_var "$ENV_FILE" "ASTERISK_ENDPOINT_CONTACT_CIDR" "$detected_net"
   fi
 
@@ -244,9 +284,11 @@ EOF
 }
 
 require_cmd envsubst
-require_cmd ip
 require_cmd openssl
 require_cmd python3
+if ! is_wsl; then
+  require_cmd ip
+fi
 
 ensure_env_file
 render_templates

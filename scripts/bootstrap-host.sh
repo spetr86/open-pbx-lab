@@ -130,6 +130,87 @@ detect_os_family() {
   exit 1
 }
 
+is_wsl() {
+  if [ -r /proc/sys/kernel/osrelease ] && grep -qiE 'microsoft|wsl' /proc/sys/kernel/osrelease; then
+    return 0
+  fi
+
+  return 1
+}
+
+refresh_ca_certificates() {
+  if command -v update-ca-certificates >/dev/null 2>&1; then
+    sudo update-ca-certificates --fresh
+  fi
+}
+
+print_tls_failure_guidance() {
+  local url="$1"
+
+  echo "TLS certificate verification failed while downloading $url." >&2
+  echo "The bootstrap script keeps TLS verification enabled; it will not retry with insecure curl flags." >&2
+  if is_wsl; then
+    echo "WSL note: this is commonly caused by stale CA links, a bad WSL clock, or a corporate HTTPS inspection CA that has not been added to the Linux trust store." >&2
+  fi
+  echo "Check that your system date is correct, then add any required local/corporate root CA to the OS trust store and rerun this script." >&2
+}
+
+curl_download() {
+  local url="$1"
+  local output_file="$2"
+  local curl_error
+  local status
+
+  curl_error="$(mktemp)"
+  if curl -fsSL "$url" -o "$output_file" 2>"$curl_error"; then
+    rm -f "$curl_error"
+    return 0
+  fi
+
+  status="$?"
+  if [ "$status" -eq 60 ] || [ "$status" -eq 77 ]; then
+    cat "$curl_error" >&2
+    echo "Refreshing CA certificates and retrying $url..." >&2
+    refresh_ca_certificates
+
+    if curl -fsSL "$url" -o "$output_file" 2>"$curl_error"; then
+      rm -f "$curl_error"
+      return 0
+    fi
+
+    status="$?"
+    cat "$curl_error" >&2
+    print_tls_failure_guidance "$url"
+    rm -f "$curl_error"
+    return "$status"
+  fi
+
+  cat "$curl_error" >&2
+  rm -f "$curl_error"
+  return "$status"
+}
+
+run_remote_installer() {
+  local url="$1"
+  local installer
+  local status
+
+  installer="$(mktemp)"
+  curl_download "$url" "$installer" || {
+    status="$?"
+    rm -f "$installer"
+    return "$status"
+  }
+
+  sudo sh "$installer" || {
+    status="$?"
+    rm -f "$installer"
+    return "$status"
+  }
+
+  rm -f "$installer"
+}
+
 install_host_packages() {
   sudo apt-get update
   sudo apt-get install -y --no-install-recommends \
@@ -142,6 +223,8 @@ install_host_packages() {
     lsb-release \
     openssl \
     python3
+
+  refresh_ca_certificates
 }
 
 ensure_docker() {
@@ -149,7 +232,7 @@ ensure_docker() {
     return 0
   fi
 
-  curl -fsSL https://get.docker.com | sudo sh
+  run_remote_installer https://get.docker.com
 }
 
 ensure_docker_compose() {
@@ -171,7 +254,7 @@ ensure_tailscale() {
     return 0
   fi
 
-  curl -fsSL https://tailscale.com/install.sh | sudo sh
+  run_remote_installer https://tailscale.com/install.sh
 }
 
 ensure_tailscaled_service() {
@@ -232,21 +315,21 @@ main() {
     exit 0
   fi
 
+  if [ "$SKIP_TAILSCALE" -eq 1 ]; then
+    echo "Docker ready. Skipping Tailscale installation and enrollment."
+    exit 0
+  fi
+
   ensure_tailscale
   ensure_tailscaled_service
 
-  if [ "$AUTH_KEY_FLAG" -eq 0 ] && [ "$INTERACTIVE" -eq 0 ] && [ "$SKIP_TAILSCALE" -eq 0 ]; then
+  if [ "$AUTH_KEY_FLAG" -eq 0 ] && [ "$INTERACTIVE" -eq 0 ]; then
     if ! tailscale_has_ipv4; then
       prompt_for_optional_auth_key
       if [ "$AUTH_KEY_FLAG" -eq 0 ]; then
         prompt_for_tailscale_mode
       fi
     fi
-  fi
-
-  if [ "$SKIP_TAILSCALE" -eq 1 ]; then
-    echo "Docker ready. Skipping Tailscale enrollment."
-    exit 0
   fi
 
   if [ "$AUTH_KEY_FLAG" -eq 1 ]; then
