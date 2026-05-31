@@ -137,6 +137,10 @@ Install prerequisites without attempting Tailscale enrollment:
 
     ./scripts/bootstrap-host.sh --configure-only
 
+Install Docker prerequisites and skip both Tailscale installation and enrollment:
+
+    ./scripts/bootstrap-host.sh --skip-tailscale
+
 After the host is ready, deploy a site-specific PBX:
 
     ASTERISK_SITE_NAME=site-b ASTERISK_EXTENSION_BASE=200 ./scripts/deploy.sh

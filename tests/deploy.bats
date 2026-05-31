@@ -253,6 +253,14 @@ EOF
   [[ "$output" == *"Skipping Tailscale enrollment."* ]]
 }
 
+
+@test "bootstrap-host skip-tailscale avoids Tailscale install and service management" {
+  run bash -lc "GONNECT_BOOTSTRAP_TEST_MODE=1 bash scripts/bootstrap-host.sh --skip-tailscale"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Docker ready. Skipping Tailscale installation and enrollment."* ]]
+  [[ "$output" != *"tailscaled"* ]]
+}
+
 @test "bootstrap-host installs deploy prerequisites" {
   run grep -F 'gettext-base' scripts/bootstrap-host.sh
   [ "$status" -eq 0 ]

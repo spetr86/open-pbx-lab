@@ -315,21 +315,21 @@ main() {
     exit 0
   fi
 
+  if [ "$SKIP_TAILSCALE" -eq 1 ]; then
+    echo "Docker ready. Skipping Tailscale installation and enrollment."
+    exit 0
+  fi
+
   ensure_tailscale
   ensure_tailscaled_service
 
-  if [ "$AUTH_KEY_FLAG" -eq 0 ] && [ "$INTERACTIVE" -eq 0 ] && [ "$SKIP_TAILSCALE" -eq 0 ]; then
+  if [ "$AUTH_KEY_FLAG" -eq 0 ] && [ "$INTERACTIVE" -eq 0 ]; then
     if ! tailscale_has_ipv4; then
       prompt_for_optional_auth_key
       if [ "$AUTH_KEY_FLAG" -eq 0 ]; then
         prompt_for_tailscale_mode
       fi
     fi
-  fi
-
-  if [ "$SKIP_TAILSCALE" -eq 1 ]; then
-    echo "Docker ready. Skipping Tailscale enrollment."
-    exit 0
   fi
 
   if [ "$AUTH_KEY_FLAG" -eq 1 ]; then
